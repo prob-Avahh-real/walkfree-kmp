@@ -1,62 +1,23 @@
-// iOS BLE adapter via Kable (CoreBluetooth)
 package com.walkfree.platform
 
-import com.juul.kable.*
-import com.walkfree.data.BleAdapter
-import com.walkfree.data.ScanResult
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 
-actual class BleAdapter : BleAdapter {
+actual class BleAdapter {
     private val _connectedDevice = MutableStateFlow<String?>(null)
-    override val connectedDevice: StateFlow<String?> = _connectedDevice
+    actual val connectedDevice: StateFlow<String?> = _connectedDevice
 
-    private var peripheral: Peripheral? = null
-    private var connectionScope: CoroutineScope? = null
+    actual fun scan(): Flow<ScanResult> = emptyFlow()
 
-    override fun scan(): Flow<ScanResult> {
-        val scanner = Scanner { /* no filter */ }
-        return scanner.advertisements.map { ad ->
-            ScanResult(
-                name = ad.name ?: "未知设备",
-                address = ad.address,
-                rssi = ad.rssi
-            )
-        }.distinctUntilChanged { it.address }
+    actual suspend fun connect(address: String) {
+        _connectedDevice.value = address
     }
 
-    override suspend fun connect(address: String) {
-        connectionScope?.cancel()
-        val p = Peripheral(address)
-        val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-        scope.launch {
-            p.connect()
-            _connectedDevice.value = address
-        }
-        peripheral = p
-        connectionScope = scope
-    }
-
-    override fun disconnect() {
-        connectionScope?.cancel()
-        connectionScope = null
-        peripheral = null
+    actual fun disconnect() {
         _connectedDevice.value = null
     }
 
-    override fun observeNotifications(serviceUuid: String, charUuid: String): Flow<ByteArray> {
-        val p = peripheral ?: return emptyFlow()
-        return p.observe(platform.UUID.fromString(charUuid))
-            .mapNotNull { it?.toByteArray() }
-    }
-}
-
-// Helper: UUID → Kable expected type
-private object platform {
-    expect class UUID {
-        companion object {
-            fun fromString(uuid: String): UUID
-        }
-    }
-    expect fun UUID.toByteArray(): ByteArray
+    actual fun observeNotifications(serviceUuid: String, charUuid: String): Flow<ByteArray> = emptyFlow()
 }

@@ -5,7 +5,6 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.encoding.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -17,7 +16,6 @@ class HttpClientImpl private constructor() {
 
     val client = HttpClient {
         install(ContentNegotiation) { json(this@HttpClientImpl.json) }
-        install(ContentEncoding) { gzip(); deflate() }
         defaultRequest {
             AppConfig.Network.defaultBaseUrl.let { if (it.isNotEmpty()) url(it) }
             contentType(ContentType.Application.Json)

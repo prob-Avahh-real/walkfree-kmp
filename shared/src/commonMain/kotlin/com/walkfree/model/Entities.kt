@@ -3,6 +3,7 @@ package com.walkfree.model
 import kotlinx.serialization.Serializable
 
 /// 运动障碍类型
+@Serializable
 enum class MovementDisorderType(val label: String) {
     FREEZING_OF_GAIT("步态冻结"),
     RESTING_TREMOR("静止性震颤"),
@@ -11,10 +12,12 @@ enum class MovementDisorderType(val label: String) {
     NORMAL("正常")
 }
 
+@Serializable
 enum class Severity(val label: String) {
     MILD("轻度"), MODERATE("中度"), SEVERE("重度")
 }
 
+@Serializable
 enum class ActivityMode { INDOOR, OUTDOOR }
 
 /// 传感器读数 (6 轴)
@@ -35,6 +38,7 @@ data class SensorReading(
 }
 
 /// 检测事件
+@Serializable
 data class DetectionEvent(
     val id: String,
     val timestamp: Long,

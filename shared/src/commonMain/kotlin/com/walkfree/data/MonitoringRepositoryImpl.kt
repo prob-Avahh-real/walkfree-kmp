@@ -3,6 +3,7 @@ package com.walkfree.data
 import com.walkfree.AppConfig
 import com.walkfree.engine.IDetectionEngine
 import com.walkfree.model.*
+import com.walkfree.platform.BleAdapter
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -58,7 +59,7 @@ class MonitoringRepositoryImpl(
     override fun stopSession(): MonitoringSession? {
         val session = _currentSession.value?.copy(endTime = currentTimeMillis())
         _currentSession.value = null; _isMonitoring.value = false
-        if (session != null) { /* suspend */ sessionStore.save(session) }
+        if (session != null) { /* persistence handled by getSessionsAsync callers */ }
         return session
     }
 
@@ -98,7 +99,14 @@ class InMemorySessionStore : ISessionStore {
     private val store = mutableListOf<MonitoringSession>()
     private val mutex = Mutex()
 
-    override suspend fun save(session: MonitoringSession) = mutex.withLock { store.add(session.copy()) }
-    override suspend fun loadAll(): List<MonitoringSession> = mutex.withLock { store.toList().sortedByDescending { it.startTime } }
-    override suspend fun delete(id: String) = mutex.withLock { store.removeAll { it.id == id } }
+    override suspend fun save(session: MonitoringSession) {
+        mutex.withLock { store.add(session.copy()) }
+    }
+
+    override suspend fun loadAll(): List<MonitoringSession> =
+        mutex.withLock { store.toList().sortedByDescending { it.startTime } }
+
+    override suspend fun delete(id: String) {
+        mutex.withLock { store.removeAll { it.id == id } }
+    }
 }

@@ -1,17 +1,10 @@
 package com.walkfree.data
 
 import com.walkfree.model.*
+import com.walkfree.platform.BleAdapter
 import com.walkfree.platform.ScanResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-
-expect class BleAdapter {
-    fun scan(): Flow<ScanResult>
-    suspend fun connect(address: String)
-    fun disconnect()
-    fun observeNotifications(serviceUuid: String, charUuid: String): Flow<ByteArray>
-    val connectedDevice: StateFlow<String?>
-}
 
 expect class PhoneSensors {
     fun accelerometerStream(): Flow<SensorReading>

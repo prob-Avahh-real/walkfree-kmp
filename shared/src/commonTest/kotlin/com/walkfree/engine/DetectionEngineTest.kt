@@ -1,11 +1,11 @@
 package com.walkfree.engine
 
 import com.walkfree.model.*
+import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.math.PI
-import kotlin.math.sin
 
 /// Mock ISignalProcessor for controlled test input
 class MockSignalProcessor(
@@ -33,24 +33,24 @@ class MockSignalProcessor(
 
 class DetectionEngineTest {
 
+    private fun nowMs() = Clock.System.now().toEpochMilliseconds()
+
     @Test
-    fun `no events when window not full`() {
+    fun `no events when window not full`() = runTest {
         val engine = DetectionEngineImpl(signalProcessor = MockSignalProcessor())
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         val events = engine.processFrame(reading)
         assertEquals(0, events.size, "Should have no events before window is full")
     }
 
     @Test
-    fun `fog detected when freeze index exceeds threshold`() {
+    fun `fog detected when freeze index exceeds threshold`() = runTest {
         val sp = MockSignalProcessor(freezeIndexValue = 3.0)
         val calibration = CalibrationConfig(fogThreshold = 1.8, debounceMs = 0)
         val engine = DetectionEngineImpl(signalProcessor = sp, calibration = calibration)
 
-        // Fill window
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         repeat(300) { engine.processFrame(reading) }
-        // Need 3 confirmations
         repeat(3) { engine.processFrame(reading) }
 
         val events = engine.processFrame(reading)
@@ -63,12 +63,12 @@ class DetectionEngineTest {
     }
 
     @Test
-    fun `no fog when freeze index below threshold`() {
+    fun `no fog when freeze index below threshold`() = runTest {
         val sp = MockSignalProcessor(freezeIndexValue = 1.0)
         val calibration = CalibrationConfig(fogThreshold = 1.8, debounceMs = 0)
         val engine = DetectionEngineImpl(signalProcessor = sp, calibration = calibration)
 
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         repeat(310) { engine.processFrame(reading) }
 
         val events = engine.processFrame(reading)
@@ -76,12 +76,12 @@ class DetectionEngineTest {
     }
 
     @Test
-    fun `tremor detected when peak is 4-6Hz with sufficient power`() {
+    fun `tremor detected when peak is 4-6Hz with sufficient power`() = runTest {
         val sp = MockSignalProcessor(tremorPeakValue = 5.0, rmsValue = 0.1)
         val calibration = CalibrationConfig(tremorPowerThreshold = 0.2, debounceMs = 0)
         val engine = DetectionEngineImpl(signalProcessor = sp, calibration = calibration)
 
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         repeat(310) { engine.processFrame(reading) }
 
         val events = engine.processFrame(reading)
@@ -90,12 +90,12 @@ class DetectionEngineTest {
     }
 
     @Test
-    fun `no tremor when rms too low`() {
+    fun `no tremor when rms too low`() = runTest {
         val sp = MockSignalProcessor(tremorPeakValue = 5.0, rmsValue = 0.01)
         val calibration = CalibrationConfig(tremorPowerThreshold = 0.2, debounceMs = 0)
         val engine = DetectionEngineImpl(signalProcessor = sp, calibration = calibration)
 
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         repeat(310) { engine.processFrame(reading) }
 
         val events = engine.processFrame(reading)
@@ -103,12 +103,17 @@ class DetectionEngineTest {
     }
 
     @Test
-    fun `bradykinesia detected when amplitude and cadence low`() {
+    fun `bradykinesia detected when amplitude and cadence low`() = runTest {
         val sp = MockSignalProcessor(amplitudeValue = 0.05, cadenceValue = 30.0)
-        val calibration = CalibrationConfig(bradykinesiaAmplitudeThreshold = 0.15, bradykinesiaCadenceThreshold = 40.0, armSwingGyroThreshold = 0.3, debounceMs = 0)
+        val calibration = CalibrationConfig(
+            bradykinesiaAmplitudeThreshold = 0.15,
+            bradykinesiaCadenceThreshold = 40.0,
+            armSwingGyroThreshold = 0.3,
+            debounceMs = 0
+        )
         val engine = DetectionEngineImpl(signalProcessor = sp, calibration = calibration)
 
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         repeat(310) { engine.processFrame(reading) }
 
         val events = engine.processFrame(reading)
@@ -117,19 +122,15 @@ class DetectionEngineTest {
     }
 
     @Test
-    fun `debounce prevents rapid re-detection`() {
+    fun `debounce prevents rapid re-detection`() = runTest {
         val sp = MockSignalProcessor(freezeIndexValue = 3.0)
         val calibration = CalibrationConfig(fogThreshold = 1.8, debounceMs = 3000L)
         val engine = DetectionEngineImpl(signalProcessor = sp, calibration = calibration)
 
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         repeat(310) { engine.processFrame(reading) }
 
-        // First batch should produce one FoG event
-        val events1 = engine.processFrame(reading)
-        val fogCount1 = events1.count { it.type == MovementDisorderType.FREEZING_OF_GAIT }
-
-        // Immediately after, should not produce another (debounce active)
+        engine.processFrame(reading)
         val events2 = engine.processFrame(reading)
         val fogCount2 = events2.count { it.type == MovementDisorderType.FREEZING_OF_GAIT }
 
@@ -137,28 +138,27 @@ class DetectionEngineTest {
     }
 
     @Test
-    fun `reset clears all state`() {
+    fun `reset clears all state`() = runTest {
         val sp = MockSignalProcessor(freezeIndexValue = 3.0)
         val calibration = CalibrationConfig(fogThreshold = 1.8, debounceMs = 0)
         val engine = DetectionEngineImpl(signalProcessor = sp, calibration = calibration)
 
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         repeat(310) { engine.processFrame(reading) }
 
         engine.reset()
 
-        // After reset, window is empty again
         val events = engine.processFrame(reading)
         assertEquals(0, events.size, "After reset, window should be empty = no events")
     }
 
     @Test
-    fun `severity from confidence ranges`() {
+    fun `severity from confidence ranges`() = runTest {
         val sp = MockSignalProcessor(freezeIndexValue = 5.0)
         val calibration = CalibrationConfig(fogThreshold = 1.8, debounceMs = 0)
         val engine = DetectionEngineImpl(signalProcessor = sp, calibration = calibration)
 
-        val reading = SensorReading(System.currentTimeMillis(), 1.0, 0.0, 0.0)
+        val reading = SensorReading(nowMs(), 1.0, 0.0, 0.0)
         repeat(310) { engine.processFrame(reading) }
 
         val events = engine.processFrame(reading)

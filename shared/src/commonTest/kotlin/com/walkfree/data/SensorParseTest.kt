@@ -1,6 +1,7 @@
 package com.walkfree.data
 
 import com.walkfree.AppConfig
+import com.walkfree.platform.ScanResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
