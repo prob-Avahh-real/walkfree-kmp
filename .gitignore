@@ -29,3 +29,28 @@ iosApp/DerivedData/
 # Environment
 .env
 *.log
+
+# Hygiene & build artifacts
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+node_modules/
+.npm-cache/
+.build/
+DerivedData/
+android/app/build/
+**/android/app/build/
+android/.gradle/
+**/android/.gradle/
+shared/build/
+**/shared/build/
+composeApp/build/
+**/composeApp/build/
+__pycache__/
+.venv/
+.expo/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.ipa
